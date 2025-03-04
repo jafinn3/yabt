@@ -108,6 +108,11 @@ def delete(args):
 
     subprocess.run(['crontab', '-r'], check=True)
 
+def list_backups(args):
+    config = get_yabt_config()
+    for repo in config['repositories']:
+        print(f'{repo}: {config["repositories"][repo]["source_dir"]} -> {config["repositories"][repo]["yabt_dir"]} ({config["repositories"][repo]["cron"]})')
+
 def create_parser():
     parser = argparse.ArgumentParser(description="yabt - Yet Another Backup Tool")
 
@@ -123,6 +128,9 @@ def create_parser():
     delete_parser.add_argument('name', help="The name of the backup to delete.")
     delete_parser.add_argument('-D', '--delete-backups', dest='delete_backups', action='store_true', help="Deletes all YABT data associated with the directory. WARNING: This will result in data loss.")
     delete_parser.set_defaults(func=delete)
+
+    list_parser = subparsers.add_parser('list', help="List all backups.")
+    list_parser.set_defaults(func=list_backups)
 
     return parser
 
