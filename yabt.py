@@ -1,10 +1,16 @@
 import os
 import yaml
+import subprocess
 import shutil
 
+CWD = os.getcwd()
+
 def validate_yabt_config(config):
-    if 'repositories' not in config:
+    if 'repositories' not in config.keys():
         return False
+
+    if config['repositories'] == None:
+        return True
 
     for repo in config['repositories']:
         if 'source_dir' not in config['repositories'][repo]:
@@ -17,12 +23,30 @@ def validate_yabt_config(config):
     return True
 
 def get_yabt_config():
-    YABT_CONFIG_FILE = "~/.yabt/yabt_config.yaml"
+    YABT_CONFIG_FILE = f'{CWD}/yabt_config.yaml'
     with open (os.path.expanduser(YABT_CONFIG_FILE)) as f:
         config = yaml.safe_load(f)
 
     assert(validate_yabt_config(config))
     return config
+
+def reset_crons():
+    with open(f'{CWD}/yabt_crontab', 'w'):
+        pass
+    config = get_yabt_config()
+
+    crontab_lines = ''
+    for repo in config['repositories']:
+        schedule = config['repositories'][repo]['cron']
+        source_dir = config['repositories'][repo]['source_dir']
+        yabt_dir = config['repositories'][repo]['yabt_dir']
+        cmd = f'{CWD}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir} >> {CWD}/cronjob.log 2>&1'
+        cron_job = f'{schedule} {cmd}\n'
+        crontab_lines += cron_job
+
+    with open(f'{CWD}/yabt_crontab', 'w') as f:
+        f.write(cron_job)
+    subprocess.run(['crontab', f'{CWD}/yabt_crontab'], check=True)
 
 def init_repo(repo_name, source_dir, yabt_dir, cron):
     if os.path.exists(yabt_dir) and os.listdir(yabt_dir) != []:
@@ -34,9 +58,12 @@ def init_repo(repo_name, source_dir, yabt_dir, cron):
         exit(1)
 
     config = get_yabt_config()
-    if repo_name in config['repositories']:
+    if config['repositories'] is not None and repo_name in config['repositories']:
         print('[ERROR] repo already exists')
         exit(1)
+
+    if config['repositories'] is None:
+        config['repositories'] = {}
 
     config['repositories'][repo_name] = {
         'source_dir': source_dir,
@@ -44,7 +71,8 @@ def init_repo(repo_name, source_dir, yabt_dir, cron):
         'cron': cron
     }
 
-    with open(os.path.expanduser('~/.yabt/yabt_config.yaml'), 'w') as f:
+    with open(os.path.expanduser(f'{CWD}/yabt_config.yaml'), 'w') as f:
         yaml.dump(config, f)
 
     os.makedirs(yabt_dir, exist_ok=True)
+    reset_crons()
