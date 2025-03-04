@@ -76,3 +76,27 @@ def init_repo(repo_name, source_dir, yabt_dir, cron):
 
     os.makedirs(yabt_dir, exist_ok=True)
     reset_crons()
+
+def delete_repo(repo_name, delete_backups):
+    if delete_backups:
+        print('[WARNING] This will delete all backups. Proceed? (y/n)')
+        answer = input()
+        if answer != 'y':
+            exit(0)
+
+    config = get_yabt_config()
+    if repo_name not in config['repositories']:
+        print(f'[ERROR] Trying to delete non-existent repo {repo_name}')
+        exit(1)
+
+    if delete_backups:
+        shutil.rmtree(config['repositories'][repo_name]['yabt_dir'])
+
+    del config['repositories'][repo_name]
+
+    with open(os.path.expanduser(f'{CWD}/yabt_config.yaml'), 'w') as f:
+        yaml.dump(config, f)
+
+    subprocess.run(['crontab', '-r'], check=True)
+
+init_repo('test', '/tmp/data0', '/tmp/yabt9', '0 0 * * *')
