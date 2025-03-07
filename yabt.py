@@ -4,7 +4,7 @@ import subprocess
 import shutil
 import argparse
 
-CWD = os.getcwd()
+CWD        = os.getcwd()
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def validate_yabt_config(config):
@@ -39,11 +39,11 @@ def reset_crons():
 
     crontab_lines = ''
     for backup in config['backups']:
-        schedule = config['backups'][backup]['cron']
-        source_dir = config['backups'][backup]['source_dir']
-        yabt_dir = config['backups'][backup]['yabt_dir']
-        cmd = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir} >> {SCRIPT_DIR}/cronjob.log 2>&1'
-        cron_job = f'{schedule} {cmd}\n'
+        schedule       = config['backups'][backup]['cron']
+        source_dir     = config['backups'][backup]['source_dir']
+        yabt_dir       = config['backups'][backup]['yabt_dir']
+        cmd            = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir} >> {SCRIPT_DIR}/cronjob.log 2>&1'
+        cron_job       = f'{schedule} {cmd}\n'
         crontab_lines += cron_job
 
     with open(f'{SCRIPT_DIR}/yabt_crontab', 'w') as f:
@@ -52,15 +52,15 @@ def reset_crons():
 
 def init(args):
     class FrequencyCronEnum:
-        DAILY = '0 0 * * *'
-        WEEKLY = '0 0 * * 0'
+        DAILY   = '0 0 * * *'
+        WEEKLY  = '0 0 * * 0'
         MONTHLY = '0 0 1 * *'
-        YEARLY = '0 0 1 1 *'
+        YEARLY  = '0 0 1 1 *'
 
     backup_name = args.name
-    yabt_dir = args.directory
-    source_dir = CWD
-    cron = args.cron
+    yabt_dir    = args.directory
+    source_dir  = CWD
+    cron        = args.cron
 
     if cron.lower() == 'daily':
         cron = FrequencyCronEnum.DAILY
@@ -132,7 +132,7 @@ def list_backups(args):
 
         return
 
-    b = config['backups'][args.name]
+    b     = config['backups'][args.name]
     files = [d for d in os.listdir(b['yabt_dir']) if os.path.isdir(os.path.join(b['yabt_dir'], d))]
 
     print(files)
@@ -146,7 +146,7 @@ def backup(args):
         exit(1)
 
     source_dir = config['backups'][backup_name]['source_dir']
-    yabt_dir = config['backups'][backup_name]['yabt_dir']
+    yabt_dir   = config['backups'][backup_name]['yabt_dir']
 
     cmd = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir}'
     subprocess.run([cmd], check=True, shell=True)
@@ -156,14 +156,14 @@ def restore(args):
     backup(args)
 
     backup_name = args.name
-    timestamp = args.timestamp
+    timestamp   = args.timestamp
 
     config = get_yabt_config()
     if backup_name not in config['backups']:
         print(f'[ERROR] Trying to restore non-existent backup {backup_name}')
         exit(1)
 
-    yabt_dir = config['backups'][backup_name]['yabt_dir']
+    yabt_dir   = config['backups'][backup_name]['yabt_dir']
     source_dir = config['backups'][backup_name]['source_dir']
 
     cmd = f'{SCRIPT_DIR}/yabt_restore.sh --yabt_dir {yabt_dir} --timestamp {timestamp} --restore-dir {source_dir}'
