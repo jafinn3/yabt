@@ -8,18 +8,18 @@ CWD = os.getcwd()
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 def validate_yabt_config(config):
-    if 'repositories' not in config.keys():
+    if 'backups' not in config.keys():
         return False
 
-    if config['repositories'] == None:
+    if config['backups'] == None:
         return True
 
-    for repo in config['repositories']:
-        if 'source_dir' not in config['repositories'][repo]:
+    for backup in config['backups']:
+        if 'source_dir' not in config['backups'][backup]:
             return False
-        if 'yabt_dir' not in config['repositories'][repo]:
+        if 'yabt_dir' not in config['backups'][backup]:
             return False
-        if 'cron' not in config['repositories'][repo]:
+        if 'cron' not in config['backups'][backup]:
             return False
 
     return True
@@ -38,10 +38,10 @@ def reset_crons():
     config = get_yabt_config()
 
     crontab_lines = ''
-    for repo in config['repositories']:
-        schedule = config['repositories'][repo]['cron']
-        source_dir = config['repositories'][repo]['source_dir']
-        yabt_dir = config['repositories'][repo]['yabt_dir']
+    for backup in config['backups']:
+        schedule = config['backups'][backup]['cron']
+        source_dir = config['backups'][backup]['source_dir']
+        yabt_dir = config['backups'][backup]['yabt_dir']
         cmd = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir} >> {SCRIPT_DIR}/cronjob.log 2>&1'
         cron_job = f'{schedule} {cmd}\n'
         crontab_lines += cron_job
@@ -65,14 +65,14 @@ def init(args):
         exit(1)
 
     config = get_yabt_config()
-    if config['repositories'] is not None and repo_name in config['repositories']:
-        print('[ERROR] repo already exists')
+    if config['backups'] is not None and repo_name in config['backups']:
+        print('[ERROR] backup already exists')
         exit(1)
 
-    if config['repositories'] is None:
-        config['repositories'] = {}
+    if config['backups'] is None:
+        config['backups'] = {}
 
-    config['repositories'][repo_name] = {
+    config['backups'][repo_name] = {
         'source_dir': source_dir,
         'yabt_dir': yabt_dir,
         'cron': cron
@@ -94,14 +94,14 @@ def delete(args):
             exit(0)
 
     config = get_yabt_config()
-    if repo_name not in config['repositories']:
-        print(f'[ERROR] Trying to delete non-existent repo {repo_name}')
+    if repo_name not in config['backups']:
+        print(f'[ERROR] Trying to delete non-existent backup {repo_name}')
         exit(1)
 
     if delete_backups:
-        shutil.rmtree(config['repositories'][repo_name]['yabt_dir'])
+        shutil.rmtree(config['backups'][repo_name]['yabt_dir'])
 
-    del config['repositories'][repo_name]
+    del config['backups'][repo_name]
 
     with open(os.path.expanduser(f'{SCRIPT_DIR}/yabt_config.yaml'), 'w') as f:
         yaml.dump(config, f)
@@ -109,9 +109,11 @@ def delete(args):
     subprocess.run(['crontab', '-r'], check=True)
 
 def list_backups(args):
+    print(args)
     config = get_yabt_config()
-    for repo in config['repositories']:
-        print(f'{repo}: {config["repositories"][repo]["source_dir"]} -> {config["repositories"][repo]["yabt_dir"]} ({config["repositories"][repo]["cron"]})')
+    for backup in config['backups']:
+        print(f'{backup}: {config["backups"][backup]["source_dir"]} -> {config["backups"][backup]["yabt_dir"]} ({config["backups"][backup]["cron"]})')
+
 
 def create_parser():
     parser = argparse.ArgumentParser(description="yabt - Yet Another Backup Tool")
@@ -130,6 +132,7 @@ def create_parser():
     delete_parser.set_defaults(func=delete)
 
     list_parser = subparsers.add_parser('list', help="List all backups.")
+    list_parser.add_argument('-n', '--name', help="List all archives for a particular tracked backup name")
     list_parser.set_defaults(func=list_backups)
 
     return parser
