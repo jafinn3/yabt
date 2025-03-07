@@ -57,7 +57,7 @@ def init(args):
         MONTHLY = '0 0 1 * *'
         YEARLY = '0 0 1 1 *'
 
-    repo_name = args.name
+    backup_name = args.name
     yabt_dir = args.directory
     source_dir = CWD
     cron = args.cron
@@ -80,14 +80,14 @@ def init(args):
         exit(1)
 
     config = get_yabt_config()
-    if config['backups'] is not None and repo_name in config['backups']:
+    if config['backups'] is not None and backup_name in config['backups']:
         print('[ERROR] backup already exists')
         exit(1)
 
     if config['backups'] is None:
         config['backups'] = {}
 
-    config['backups'][repo_name] = {
+    config['backups'][backup_name] = {
         'source_dir': source_dir,
         'yabt_dir': yabt_dir,
         'cron': cron
@@ -100,7 +100,7 @@ def init(args):
     reset_crons()
 
 def delete(args):
-    repo_name = args.name
+    backup_name = args.name
     delete_backups = args.delete_backups
     if delete_backups:
         print('[WARNING] This will delete all backups. Proceed? (y/n)')
@@ -109,14 +109,14 @@ def delete(args):
             exit(0)
 
     config = get_yabt_config()
-    if repo_name not in config['backups']:
-        print(f'[ERROR] Trying to delete non-existent backup {repo_name}')
+    if backup_name not in config['backups']:
+        print(f'[ERROR] Trying to delete non-existent backup {backup_name}')
         exit(1)
 
     if delete_backups:
-        shutil.rmtree(config['backups'][repo_name]['yabt_dir'])
+        shutil.rmtree(config['backups'][backup_name]['yabt_dir'])
 
-    del config['backups'][repo_name]
+    del config['backups'][backup_name]
 
     with open(os.path.expanduser(f'{SCRIPT_DIR}/yabt_config.yaml'), 'w') as f:
         yaml.dump(config, f)
