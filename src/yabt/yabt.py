@@ -7,8 +7,8 @@ import pkg_resources
 
 CONFIG_PATH=os.path.expanduser('~/.yabt')
 
-BACKUP_SCRIPT_PATH  = pkg_resources.resource_filename('yabt', 'scripts/yabt_backup.sh')
-RESTORE_SCRIPT_PATH = pkg_resources.resource_filename('yabt', 'scripts/yabt_restore.sh')
+BACKUP_SCRIPT_PATH  = pkg_resources.resource_filename('yet-another-backup-tool', 'scripts/yabt_backup.sh')
+RESTORE_SCRIPT_PATH = pkg_resources.resource_filename('yet-another-backup-tool', 'scripts/yabt_restore.sh')
 CWD                 = os.getcwd()
 
 def validate_yabt_config(config):
