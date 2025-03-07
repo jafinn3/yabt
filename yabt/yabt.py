@@ -3,9 +3,13 @@ import yaml
 import subprocess
 import shutil
 import argparse
+import pkg_resources
 
-CWD        = os.getcwd()
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+CONFIG_PATH=os.path.expanduser('~/.yabt')
+
+BACKUP_SCRIPT_PATH  = pkg_resources.resource_filename('yabt', 'scripts/yabt_backup.sh')
+RESTORE_SCRIPT_PATH = pkg_resources.resource_filename('yabt', 'scripts/yabt_restore.sh')
+CWD                 = os.getcwd()
 
 def validate_yabt_config(config):
     if 'backups' not in config.keys():
@@ -25,7 +29,7 @@ def validate_yabt_config(config):
     return True
 
 def get_yabt_config():
-    YABT_CONFIG_FILE = f'{SCRIPT_DIR}/yabt_config.yaml'
+    YABT_CONFIG_FILE = f'{CONFIG_PATH}/yabt_config.yaml'
     with open (os.path.expanduser(YABT_CONFIG_FILE)) as f:
         config = yaml.safe_load(f)
 
@@ -33,7 +37,7 @@ def get_yabt_config():
     return config
 
 def reset_crons():
-    with open(f'{SCRIPT_DIR}/yabt_crontab', 'w'):
+    with open(f'{CONFIG_PATH}/yabt_crontab', 'w'):
         pass
     config = get_yabt_config()
 
@@ -42,13 +46,13 @@ def reset_crons():
         schedule       = config['backups'][backup]['cron']
         source_dir     = config['backups'][backup]['source_dir']
         yabt_dir       = config['backups'][backup]['yabt_dir']
-        cmd            = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir} >> {SCRIPT_DIR}/cronjob.log 2>&1'
+        cmd            = f'{BACKUP_SCRIPT_PATH} --source_dir {source_dir} --yabt_dir {yabt_dir} >> {CONFIG_PATH}/cronjob.log 2>&1'
         cron_job       = f'{schedule} {cmd}\n'
         crontab_lines += cron_job
 
-    with open(f'{SCRIPT_DIR}/yabt_crontab', 'w') as f:
+    with open(f'{CONFIG_PATH}/yabt_crontab', 'w') as f:
         f.write(cron_job)
-    subprocess.run(['crontab', f'{SCRIPT_DIR}/yabt_crontab'], check=True)
+    subprocess.run(['crontab', f'{CONFIG_PATH}/yabt_crontab'], check=True)
 
 def init(args):
     class FrequencyCronEnum:
@@ -93,7 +97,7 @@ def init(args):
         'cron': cron
     }
 
-    with open(os.path.expanduser(f'{SCRIPT_DIR}/yabt_config.yaml'), 'w') as f:
+    with open(os.path.expanduser(f'{CONFIG_PATH}/yabt_config.yaml'), 'w') as f:
         yaml.dump(config, f)
 
     os.makedirs(yabt_dir, exist_ok=True)
@@ -118,7 +122,7 @@ def delete(args):
 
     del config['backups'][backup_name]
 
-    with open(os.path.expanduser(f'{SCRIPT_DIR}/yabt_config.yaml'), 'w') as f:
+    with open(os.path.expanduser(f'{CONFIG_PATH}/yabt_config.yaml'), 'w') as f:
         yaml.dump(config, f)
 
     subprocess.run(['crontab', '-r'], check=True)
@@ -148,7 +152,7 @@ def backup(args):
     source_dir = config['backups'][backup_name]['source_dir']
     yabt_dir   = config['backups'][backup_name]['yabt_dir']
 
-    cmd = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir}'
+    cmd = f'{BACKUP_SCRIPT_PATH} --source_dir {source_dir} --yabt_dir {yabt_dir}'
     subprocess.run([cmd], check=True, shell=True)
 
 def restore(args):
@@ -166,7 +170,7 @@ def restore(args):
     yabt_dir   = config['backups'][backup_name]['yabt_dir']
     source_dir = config['backups'][backup_name]['source_dir']
 
-    cmd = f'{SCRIPT_DIR}/yabt_restore.sh --yabt_dir {yabt_dir} --timestamp {timestamp} --restore-dir {source_dir}'
+    cmd = f'{RESTORE_SCRIPT_PATH} --yabt_dir {yabt_dir} --timestamp {timestamp} --restore-dir {source_dir}'
     subprocess.run([cmd], check=True, shell=True)
 
 def create_parser():
@@ -200,7 +204,26 @@ def create_parser():
 
     return parser
 
+def setup_config_path():
+    if os.path.exists(CONFIG_PATH):
+        return
+
+
+    print('Performing first time setup...')
+    os.makedirs(CONFIG_PATH)
+
+    DEFAULT_CONFIG = {'backups': {}}
+    yaml.dump(DEFAULT_CONFIG, open(os.path.join(CONFIG_PATH, 'yabt_config.yaml'), 'w'))
+
+    with open(os.path.join(CONFIG_PATH, 'yabt_crontab'), 'w'):
+        pass
+
+    with open(os.path.join(CONFIG_PATH, 'cronjob.log'), 'w'):
+        pass
+
 def main():
+    setup_config_path()
+
     parser = create_parser()
     args = parser.parse_args()
 
