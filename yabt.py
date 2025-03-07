@@ -51,10 +51,25 @@ def reset_crons():
     subprocess.run(['crontab', f'{SCRIPT_DIR}/yabt_crontab'], check=True)
 
 def init(args):
+    class FrequencyCronEnum:
+        DAILY = '0 0 * * *'
+        WEEKLY = '0 0 * * 0'
+        MONTHLY = '0 0 1 * *'
+        YEARLY = '0 0 1 1 *'
+
     repo_name = args.name
     yabt_dir = args.directory
     source_dir = CWD
     cron = args.cron
+
+    if cron.lower() == 'daily':
+        cron = FrequencyCronEnum.DAILY
+    elif cron.lower() == 'weekly':
+        cron = FrequencyCronEnum.WEEKLY
+    elif cron.lower() == 'monthly':
+        cron = FrequencyCronEnum.MONTHLY
+    elif cron.lower() == 'yearly':
+        cron = FrequencyCronEnum.YEARLY
 
     if os.path.exists(yabt_dir) and os.listdir(yabt_dir) != []:
         print('[ERROR] yabt_dir already exists')
@@ -109,11 +124,50 @@ def delete(args):
     subprocess.run(['crontab', '-r'], check=True)
 
 def list_backups(args):
-    print(args)
     config = get_yabt_config()
-    for backup in config['backups']:
-        print(f'{backup}: {config["backups"][backup]["source_dir"]} -> {config["backups"][backup]["yabt_dir"]} ({config["backups"][backup]["cron"]})')
 
+    if args.name is None:
+        for backup in config['backups']:
+            print(f'{backup}: {config["backups"][backup]["source_dir"]} -> {config["backups"][backup]["yabt_dir"]} ({config["backups"][backup]["cron"]})')
+
+        return
+
+    b = config['backups'][args.name]
+    files = [d for d in os.listdir(b['yabt_dir']) if os.path.isdir(os.path.join(b['yabt_dir'], d))]
+
+    print(files)
+
+def backup(args):
+    backup_name = args.name
+
+    config = get_yabt_config()
+    if backup_name not in config['backups']:
+        print(f'[ERROR] Trying to backup non-existent backup {backup_name}')
+        exit(1)
+
+    source_dir = config['backups'][backup_name]['source_dir']
+    yabt_dir = config['backups'][backup_name]['yabt_dir']
+
+    cmd = f'{SCRIPT_DIR}/yabt_backup.sh --source_dir {source_dir} --yabt_dir {yabt_dir}'
+    subprocess.run([cmd], check=True, shell=True)
+
+def restore(args):
+    print("Creating backup before restoring...")
+    backup(args)
+
+    backup_name = args.name
+    timestamp = args.timestamp
+
+    config = get_yabt_config()
+    if backup_name not in config['backups']:
+        print(f'[ERROR] Trying to restore non-existent backup {backup_name}')
+        exit(1)
+
+    yabt_dir = config['backups'][backup_name]['yabt_dir']
+    source_dir = config['backups'][backup_name]['source_dir']
+
+    cmd = f'{SCRIPT_DIR}/yabt_restore.sh --yabt_dir {yabt_dir} --timestamp {timestamp} --restore-dir {source_dir}'
+    subprocess.run([cmd], check=True, shell=True)
 
 def create_parser():
     parser = argparse.ArgumentParser(description="yabt - Yet Another Backup Tool")
@@ -134,6 +188,15 @@ def create_parser():
     list_parser = subparsers.add_parser('list', help="List all backups.")
     list_parser.add_argument('-n', '--name', help="List all archives for a particular tracked backup name")
     list_parser.set_defaults(func=list_backups)
+
+    backup_parser = subparsers.add_parser('backup', help="Backup the current directory.")
+    backup_parser.add_argument('name', help="The name of the backup.")
+    backup_parser.set_defaults(func=backup)
+
+    restore_parser = subparsers.add_parser('restore', help="Restore a backup.")
+    restore_parser.add_argument('name', help="The name of the backup.")
+    restore_parser.add_argument('timestamp', help="The timestamp of the backup to restore.")
+    restore_parser.set_defaults(func=restore)
 
     return parser
 
